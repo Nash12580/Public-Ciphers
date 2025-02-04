@@ -29,16 +29,23 @@ XB = random.randint(1, q-1)
 YA = pow(alpha, XA, q)
 YB = pow(alpha, XB, q)
 
-SA = pow (YB, XA, q)
-SB = pow (YA, XB, q)
+# Mallory
+intercept = q
 
-assert SA == SB, "Shared keys don't match"
+SA = pow (intercept, XA, q) # s = 0
+SB = pow (intercept, XB, q) # s = 0
+
+print(f"Symmetric Key: {SA}\n")
+
+assert SA == 0 and SB == 0, "MITM attack didn't work"
 
 # Convert shared secret -> 16-byte AES key
-k = hashlib.sha256(str(SA).encode()).digest()[:16]
+mallory_key = hashlib.sha256(str(SA).encode()).digest()[:16]
+
+print(f"Mallory's Derives AES key: {mallory_key.hex()}\n")
 
 iv = os.urandom(16)
-cipher = AES.new(k, AES.MODE_CBC, iv)
+cipher = AES.new(mallory_key, AES.MODE_CBC, iv)
 
 m0 = b"Hi Bob"
 m1 = b"Hi Alice"
@@ -46,12 +53,12 @@ m1 = b"Hi Alice"
 c0 = cipher.encrypt(pad(m0, AES.block_size))
 c1 = cipher.encrypt(pad(m1, AES.block_size))
 
-decipher = AES.new(k, AES.MODE_CBC, iv)
+decipher_mallory = AES.new(mallory_key, AES.MODE_CBC, iv)
 
-m0_decrypted = unpad(decipher.decrypt(c0), AES.block_size)
-m1_decrypted = unpad(decipher.decrypt(c1), AES.block_size)
+m0_mallory = unpad(decipher_mallory.decrypt(c0), AES.block_size)
+m1_mallory = unpad(decipher_mallory.decrypt(c1), AES.block_size)
 
 print(f"Alice's Encrypted Message: {c0.hex()}")
-print(f"Alice's Decrypted Message: {m1_decrypted.decode()}")
 print(f"Bob's Encrypted Message: {c1.hex()}")
-print(f"Bob's Decrypted Message: {m0_decrypted.decode()}")
+print(f"Mallory intercepted Alice's Message: {m0_mallory.decode()}")
+print(f"Mallory intercepted Bob's Message: {m1_mallory.decode()}")
